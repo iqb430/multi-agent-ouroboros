@@ -25,8 +25,8 @@ function LogPane({ title, status, inverted, text }: { title: string, status: str
   }, [text]);
 
   return (
-    <div className={`flex flex-col h-full border-2 border-black min-h-0 ${inverted ? 'bg-black text-[#ccc]' : 'bg-white text-black'} relative`}>
-      <div className={`p-2 flex justify-between font-bold text-xs uppercase border-b-2 ${inverted ? 'bg-black text-white border-white border-dashed' : 'bg-black text-white border-black'}`}>
+    <div className={`flex flex-col h-full border-2 border-black min-h-0 ${inverted ? 'bg-[#111111] text-[#f4f4f0]' : 'bg-[#f4f4f0] text-[#111111]'} relative`}>
+      <div className={`p-2 flex justify-between font-bold text-xs uppercase border-b-2 ${inverted ? 'bg-[#111111] text-[#f4f4f0] border-[#f4f4f0] border-dashed' : 'bg-[#111111] text-[#f4f4f0] border-black'}`}>
         <span>{title}</span>
         <span className={status === 'RUNNING' ? '' : 'opacity-50'}>{status}</span>
       </div>
@@ -47,9 +47,11 @@ export default function Home() {
   const [cycle, setCycle] = useState(1);
   
   const runningRef = useRef(running);
-  runningRef.current = running;
+  useEffect(() => {
+    runningRef.current = running;
+  }, [running]);
 
-  const runAgent = async (system: string, prompt: string, setter: any, currentLog: string) => {
+  const runAgent = async (system: string, prompt: string, setter: React.Dispatch<React.SetStateAction<string>>, currentLog: string) => {
     setter(currentLog + "\n\n> [PROCESSING...]\n");
     try {
       const res = await fetch("/api/agent", {
@@ -88,7 +90,7 @@ export default function Home() {
     }
 
     const match = t3.match(/\[NEW:(.*?)\]/i);
-    let nextTopic = match ? match[1].trim() : "Entropy";
+    const nextTopic = match ? match[1].trim() : "Entropy";
     setTopic(nextTopic);
     setCycle(c => c + 1);
     
@@ -102,12 +104,12 @@ export default function Home() {
   }, [running]);
 
   return (
-    <div className="flex flex-col h-screen w-full relative crt bg-[#f4f4f0]">
+    <div className="flex flex-col h-screen w-full relative bg-[#f4f4f0]">
       
       {/* HEADER HUD */}
       <div className="flex-none h-12 w-full border-b-2 border-black flex items-center px-4 justify-between uppercase text-xs font-bold tracking-widest bg-[#f4f4f0] z-20">
         <span>[SYS.SHIFTED] OUROBOROS /// CYCLE: {cycle}</span>
-        <span className={running ? "text-green-600 animate-pulse" : "text-black"}>
+        <span className={running ? "text-[#E61919]" : "text-black"}>
           STATUS: {running ? "ACTIVE" : "IDLE"} | TPC: {topic}
         </span>
       </div>
@@ -119,16 +121,16 @@ export default function Home() {
           <LogPane title="AGT.01 / ABSURDIST" status={running ? "RUNNING" : "WAIT"} text={a1} />
         </div>
         
-        <div className="flex-none w-4 flex flex-col justify-center items-center text-xl font-bold">
-          →
+        <div className="flex-none w-4 text-[#111111] flex flex-col justify-center items-center text-xs font-mono font-bold tracking-widest">
+          {/* /// */}
         </div>
 
         <div className="flex-1 min-w-0">
           <LogPane title="AGT.02 / DEVIL'S ADV." status={running ? "RUNNING" : "WAIT"} text={a2} />
         </div>
 
-        <div className="flex-none w-4 flex flex-col justify-center items-center text-xl font-bold">
-          →
+        <div className="flex-none w-4 text-[#111111] flex flex-col justify-center items-center text-xs font-mono font-bold tracking-widest">
+          {/* /// */}
         </div>
 
         <div className="flex-1 min-w-0">
@@ -139,9 +141,9 @@ export default function Home() {
 
       {/* FOOTER CONTROLS */}
       <div className="flex-none h-10 w-full border-t-2 border-black flex bg-[#f4f4f0] text-xs font-bold uppercase cursor-pointer">
-        <button 
+          <button 
           onClick={() => setRunning(!running)} 
-          className="flex-1 h-full hover:bg-black hover:text-white transition-colors flex items-center justify-center outline-none"
+          className="flex-1 h-full hover:bg-black hover:text-[#f4f4f0] flex items-center justify-center outline-none"
         >
           {running ? "■ TERMINATE OROBOUROS (KILL SWITCH)" : "▶ INITIATE SHIFTED LOOP"}
         </button>

@@ -36,14 +36,4 @@ body {
   background: #111;
 }
 
-/* CRT Scannlines (Subtle overlay) */
-.crt::before {
-  content: " ";
-  display: block;
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%);
-  background-size: 100% 2px;
-  z-index: 50;
-  pointer-events: none;
-}
+
