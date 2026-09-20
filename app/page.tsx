@@ -62,8 +62,9 @@ export default function Home() {
       const data = await res.json();
       setter(currentLog + "\n\n> " + data.text);
       return data.text;
-    } catch (err) {
-      setter(currentLog + "\n\n> [ERR: SYS FAULT - " + (err.message || "NETWORK DROP") + "]");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "NETWORK DROP";
+      setter(currentLog + "\n\n> [ERR: SYS FAULT - " + errorMessage + "]");
       throw err; // Actually throw to prevent silent continuation
     }
   };
