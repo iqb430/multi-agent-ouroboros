@@ -1,69 +1,152 @@
-import Image from "next/image";
+"use client";
+import { useState, useRef, useEffect } from "react";
+
+const SYS_PROMPTS = {
+  hook: "You are AGT.01 (Absurdist Hook). Given a topic, provide a cynical, highly absurd, and provocative opening statement. Question the very premise of why humans care about it. Keep it under 2 sentences. Gritty tone.",
+  devil: "You are AGT.02 (Devil's Advocate). You read AGT.01's absurd hook. You aggressively dismantle their absurdity using cold, ruthless logic and harsh realities. No intro, just destroy their point in under 2 sentences.",
+  butterfly: "You are AGT.03 (Butterfly Effect). You synthesize AGT.01's chaos and AGT.02's logic to predict a completely unexpected, weird, but logical butterfly effect 5 years from now. End your response with exactly ONE short new topic name inside brackets like [NEW: Artificial Meat] to feed back."
+};
+
+function LogPane({ title, status, inverted, text }: { title: string, status: string, inverted?: boolean, text: string }) {
+  // auto-scroll ref
+  const logRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (logRef.current) {
+        logRef.current.scrollTop = logRef.current.scrollHeight;
+      }
+    };
+    // requestAnimationFrame ensures DOM has updated before scrolling
+    requestAnimationFrame(scrollToBottom);
+    // fallback timeout for heavy repaints
+    const t = setTimeout(scrollToBottom, 50);
+    return () => clearTimeout(t);
+  }, [text]);
+
+  return (
+    <div className={`flex flex-col h-full border-2 border-black min-h-0 ${inverted ? 'bg-black text-[#ccc]' : 'bg-white text-black'} relative`}>
+      <div className={`p-2 flex justify-between font-bold text-xs uppercase border-b-2 ${inverted ? 'bg-black text-white border-white border-dashed' : 'bg-black text-white border-black'}`}>
+        <span>{title}</span>
+        <span className={status === 'RUNNING' ? '' : 'opacity-50'}>{status}</span>
+      </div>
+      <div ref={logRef} className="p-4 flex-1 overflow-y-auto min-h-0 text-sm leading-relaxed font-bold break-words whitespace-pre-wrap">
+        {text}
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
+  const [running, setRunning] = useState(false);
+  const [topic, setTopic] = useState("Corporate AI Optimization");
+  
+  const [a1, setA1] = useState("AWAITING CONNECTION...");
+  const [a2, setA2] = useState("STBY");
+  const [a3, setA3] = useState("END_LOGIC");
+  const [cycle, setCycle] = useState(1);
+  
+  const runningRef = useRef(running);
+  runningRef.current = running;
+
+  const runAgent = async (system: string, prompt: string, setter: any, currentLog: string) => {
+    setter(currentLog + "\n\n> [PROCESSING...]\n");
+    try {
+      const res = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ system, prompt })
+      });
+      const data = await res.json();
+      setter(currentLog + "\n\n> " + data.text);
+      return data.text;
+    } catch (err) {
+      setter(currentLog + "\n\n> [ERR: SYS FAULT - " + (err.message || "NETWORK DROP") + "]");
+      throw err; // Actually throw to prevent silent continuation
+    }
+  };
+
+  const executeLoop = async (currentTopic: string, logs: string[]) => {
+    if (!runningRef.current) return;
+    
+    let t1, t2, t3;
+    try {
+      t1 = await runAgent(SYS_PROMPTS.hook, `Topic: ${currentTopic}`, setA1, logs[0]);
+      if (!runningRef.current) return;
+      
+      t2 = await runAgent(SYS_PROMPTS.devil, `Absurdist statement to destroy: ${t1}`, setA2, logs[1]);
+      if (!runningRef.current) return;
+
+      t3 = await runAgent(SYS_PROMPTS.butterfly, `Synthesis context: AGT.01: "${t1}" | AGT.02: "${t2}". Predict butterfly effect. End with [NEW: Topic].`, setA3, logs[2]);
+      if (!runningRef.current) return;
+    } catch (err) {
+      console.error("Agent pipeline failed, retrying cycle in 5s...", err);
+      setTimeout(() => {
+        if (runningRef.current) executeLoop(currentTopic, logs); // Retry same parameters
+      }, 5000);
+      return;
+    }
+
+    const match = t3.match(/\[NEW:(.*?)\]/i);
+    let nextTopic = match ? match[1].trim() : "Entropy";
+    setTopic(nextTopic);
+    setCycle(c => c + 1);
+    
+    setTimeout(() => {
+      if (runningRef.current) executeLoop(nextTopic, [logs[0] + "\n\n> " + t1, logs[1] + "\n\n> " + t2, logs[2] + "\n\n> " + t3]);
+    }, 2000);
+  };
+
+  useEffect(() => {
+    if (running) executeLoop(topic, [a1, a2, a3]);
+  }, [running]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col h-screen w-full relative crt bg-[#f4f4f0]">
+      
+      {/* HEADER HUD */}
+      <div className="flex-none h-12 w-full border-b-2 border-black flex items-center px-4 justify-between uppercase text-xs font-bold tracking-widest bg-[#f4f4f0] z-20">
+        <span>[SYS.SHIFTED] OUROBOROS /// CYCLE: {cycle}</span>
+        <span className={running ? "text-green-600 animate-pulse" : "text-black"}>
+          STATUS: {running ? "ACTIVE" : "IDLE"} | TPC: {topic}
+        </span>
+      </div>
+
+      {/* 3-PANE WORKSPACE */}
+      <div className="flex-1 flex w-full p-4 gap-4 overflow-hidden min-h-0 bg-[#f4f4f0]">
+        
+        <div className="flex-1 min-w-0">
+          <LogPane title="AGT.01 / ABSURDIST" status={running ? "RUNNING" : "WAIT"} text={a1} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        
+        <div className="flex-none w-4 flex flex-col justify-center items-center text-xl font-bold">
+          →
         </div>
-      </main>
+
+        <div className="flex-1 min-w-0">
+          <LogPane title="AGT.02 / DEVIL'S ADV." status={running ? "RUNNING" : "WAIT"} text={a2} />
+        </div>
+
+        <div className="flex-none w-4 flex flex-col justify-center items-center text-xl font-bold">
+          →
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <LogPane title="AGT.03 / BUTTERFLY" status={running ? "RUNNING" : "WAIT"} inverted text={a3} />
+        </div>
+
+      </div>
+
+      {/* FOOTER CONTROLS */}
+      <div className="flex-none h-10 w-full border-t-2 border-black flex bg-[#f4f4f0] text-xs font-bold uppercase cursor-pointer">
+        <button 
+          onClick={() => setRunning(!running)} 
+          className="flex-1 h-full hover:bg-black hover:text-white transition-colors flex items-center justify-center outline-none"
+        >
+          {running ? "■ TERMINATE OROBOUROS (KILL SWITCH)" : "▶ INITIATE SHIFTED LOOP"}
+        </button>
+      </div>
+
     </div>
   );
 }

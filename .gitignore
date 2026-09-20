@@ -39,3 +39,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+\n# Python\n__pycache__/\n*.pyc\n*.pyo\n\n# macOS\n._*\n.DS_Store
