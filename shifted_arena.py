@@ -22,11 +22,21 @@ def run_agent(agent_name):
     print(f"[*] Menurunkan {agent_name} ke dalam Arena...")
     system_prompt = PROMPTS[agent_name]
     
-    # Kita menggunakan omniroute launch agar terekam oleh pixel-agents hook
-    # -q untuk meminimalisir output verbose dari claude
+    # 1. BACA KONTEKS SECARA LOKAL (Pythonic Way)
+    # Daripada menyuruh LLM ngebaca file pakai tool yang bakal bikin lambat/timeout,
+    # kita suntik konteksnya langsung ke dalam prompt.
+    try:
+        with open(ARENA_FILE, "r") as f:
+            lines = f.readlines()
+            # Ambil hanya 20 baris terakhir biar konteks LLM nggak kepenuhan (Context Window optimization)
+            context = "".join(lines[-20:])
+    except FileNotFoundError:
+        context = "[ARENA KOSONG]"
+    
+    # 2. INJEKSI KONTEKS KE PROMPT
     cmd = [
         "omniroute", "launch", 
-        f"Ini tugasmu: {system_prompt}. Baca arena_log.md untuk konteks. Outputkan jawaban singkatmu saja. Gunakan bahasa gaul tapi intelek."
+        f"Konteks Arena Terakhir:\n{context}\n\nIni tugasmu: {system_prompt}. Outputkan jawaban singkatmu saja. Gunakan bahasa gaul tapi intelek."
     ]
     
     try:
